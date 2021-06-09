@@ -33,8 +33,6 @@ endif()
 
 add_executable(discrete_field_to_voxelize
 	main.cpp
-	bmp_file.hpp
-	bmp_file.cpp
 )
 
 add_dependencies(discrete_field_to_voxelize
