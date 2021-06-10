@@ -6,8 +6,11 @@
 #include <string>
 #include <iostream>
 #include <array>
+#include "cell.h"
+#include "grid3D.h"
 
 using namespace Eigen;
+
 
 std::istream& operator>>(std::istream& is, std::array<unsigned int, 3>& data)
 {
@@ -87,6 +90,14 @@ int main(int argc, char* argv[])
     std::cout << "symetry point : ";
     std::copy(std::begin(psym), std::end(psym), std::ostream_iterator<double>(std::cout, " "));
     std::cout << std::endl;
+
+    // At first, we will not take into account the symetry point
+    // Thus, the total number of cells known.
+    auto dom = new grid3D<cell>(resolution[0],resolution[1],resolution[2]);
+
+    std::cout << "Domaine total size : " << dom->size() << std::endl;
+
+
 
 //#pragma omp parallel for
 //		for (int k = 0; k < static_cast<int>(xsamples * ysamples); ++k)
