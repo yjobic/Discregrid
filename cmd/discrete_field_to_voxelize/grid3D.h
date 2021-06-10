@@ -33,9 +33,9 @@ class grid3D {
     ~grid3D(){
       delete[] data;}
     inline T& operator()(unsigned x,unsigned y,unsigned z){
-      return data[z*dimx*dimy+y*dimx+x];}
+      return data[z + dimz*(y+dimy*x)];}
     inline const T& operator()(unsigned x,unsigned y,unsigned z) const{
-      return data[z*dimx*dimy+y*dimx+x];}
+      return data[z + dimz*(y+dimy*x)];}
     inline unsigned size() const{
       return dimx*dimy*dimz;}
 };
