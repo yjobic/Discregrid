@@ -157,6 +157,14 @@ int main(int argc, char* argv[])
       }
     }
 
+    std::cout << "Statistics of the first cell (0,0,0) " << std::endl;
+    std::cout << "MeanValue : " << grid(0,0,0).getSdfMeanValue() << std::endl;
+    std::cout << "ratioInsideOverTotal : " << grid(0,0,0).getRatioInsideOverTotal() << std::endl;
+
+    std::cout << "Statistics of the first cell (1,1,0) " << std::endl;
+    std::cout << "MeanValue : " << grid(1,1,0).getSdfMeanValue() << std::endl;
+    std::cout << "ratioInsideOverTotal : " << grid(1,1,0).getRatioInsideOverTotal() << std::endl;
+
     //print the resulting boundary of the voxelized domain
 //    for (unsigned int k = 0; k < grid.getXdim(); ++k) {
 //      for (unsigned int j = 0; j < grid.getYdim(); ++j) {

@@ -11,12 +11,14 @@ cell::cell() {
   border=-1;
   solide=-1;
   sdfMeanValue=-123456;
+  ratioInsideOverTotal=-1;
 }
 
 cell::~cell() {
   border=-2;
   solide=-2;
   sdfMeanValue=-123456;
+  ratioInsideOverTotal=-1;
 }
 
 void cell::setDims(std::vector<double> &another) {
@@ -40,6 +42,7 @@ void cell::printDims() {
 }
 
 void cell::initSdfMeanValue(std::unique_ptr<Discregrid::DiscreteGrid> &sdf, unsigned int fields_id, std::vector<int> &samples) {
+  int     nbInside;
   double  xwidths,ywidths,zwidths,dist,moyDist;
   bool initn=false,initp=false;
   auto sample = Vector3d{};
@@ -51,7 +54,7 @@ void cell::initSdfMeanValue(std::unique_ptr<Discregrid::DiscreteGrid> &sdf, unsi
   ywidths = (dims[YMAX]-dims[YMIN])/samples[1];
   zwidths = (dims[ZMAX]-dims[ZMIN])/samples[2];
 
-  moyDist=0;
+  nbInside=0;
   for(unsigned int i=0; i<samples[0]; ++i) {
     for(unsigned int j=0; j<samples[1]; ++j) {
       for(unsigned int k=0; k<samples[2]; ++k) {
@@ -69,12 +72,20 @@ void cell::initSdfMeanValue(std::unique_ptr<Discregrid::DiscreteGrid> &sdf, unsi
           initn=true;
         }
         moyDist += dist;
+        if (dist>=0) nbInside++;
       }
     }
   }
-  sdfMeanValue = moyDist/(samples[0]+samples[1]+samples[2]);
+  unsigned int totalSamples = samples[0]*samples[1]*samples[2];
+  sdfMeanValue = moyDist/totalSamples;
+  //SDF is not very accurate for openBoundary domain. We know it's quite good
+  //for closed one, which is the inside. Thus, computing the ratio of inside samples over
+  //the total gives a better indicator of Solide/Fluide voxel.
+  ratioInsideOverTotal = nbInside/(double)totalSamples;
+  if (ratioInsideOverTotal>=0.5) solide=1;
+  else solide=0;
+//  if (moyDist>0) solide=1;
+//  else solide=0;
   if (initp && initn) border=1;
   else border=0;
-  if (sdfMeanValue>1e-15) solide=1;
-  else solide=0;
 }
