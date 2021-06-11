@@ -76,11 +76,6 @@ int main(int argc, char* argv[])
     auto resolution = result["r"].as<std::array<unsigned int, 3>>();
     //auto psym = result["s"].as<std::vector<double>>();
 
-    auto xsamples = 5; auto ysamples = xsamples; auto zsamples = xsamples;
-
-    auto data = std::vector<double>{};
-		data.resize(xsamples * ysamples * zsamples);
-
 		auto field_id = result["f"].as<unsigned int>();
 
 		std::cout << "resolution : ";
@@ -98,7 +93,7 @@ int main(int argc, char* argv[])
     std::cout << "Domaine total size : " << grid.size() << std::endl;
     {
       double xcellwidth,ycellwidth,zcellwidth,xmin,xmax,ymin,ymax,zmin,zmax;
-      std::vector<double> dims;
+      std::vector<double> dims(6,0);
 
       //simplification : the symetry point is at (0,0,0)
       //the widths are then
@@ -126,80 +121,35 @@ int main(int argc, char* argv[])
     }
 
     std::cout << "xdims of (0,0,0) : " << std::endl;
-	  auto vecToPrintStdin = grid(0,0,0).getDims();
-    std::copy(std::begin(vecToPrintStdin), std::end(vecToPrintStdin), std::ostream_iterator<double>(std::cout, " "));
+	  grid(0,0,0).printDims();
     std::cout << std::endl;
 
-    //std::cout << "xdims of (1,2,3) : " << grid(1,2,3).getXdim()[0] << grid(1,2,3).getXdim()[1] << std::endl;
-    //std::cout << "xdims of (2,3,4) : " << grid(2,3,4).getXdim()[0] << grid(2,3,4).getXdim()[1] << std::endl;
+    auto sample = std::vector<int>{20,20,20};
 
-//#pragma omp parallel for
-//		for (int k = 0; k < static_cast<int>(xsamples * ysamples); ++k)
-//		{
-//			auto i = k % xsamples;
-//			auto j = k / xsamples;
-//
-//			auto xr = static_cast<double>(i) / static_cast<double>(xsamples);
-//			auto yr = static_cast<double>(j) / static_cast<double>(ysamples);
-//
-//			auto x = domain.min()(dir(0)) + xr * diag(dir(0)) + 0.5 * xwidth;
-//			auto y = domain.min()(dir(1)) + yr * diag(dir(1)) + 0.5 * ywidth;
-//
-//			auto sample = Vector3d{};
-//			sample(dir(0)) = x;
-//			sample(dir(1)) = y;
-//			sample(dir(2)) = domain.min()(dir(2)) + 0.5 * (1.0 + depth) * diag(dir(2));
-//
-//			data[k] = sdf->interpolate(field_id, sample);
-//			if (data[k] == std::numeric_limits<double>::max())
-//			{
-//				data[k] = 0.0;
-//			}
-//		}
-//
-//		std::cout << "DONE" << std::endl;
-//
-//		auto min_v = *std::min_element(data.begin(), data.end());
-//		auto max_v = *std::max_element(data.begin(), data.end());
-//
-//		auto out_file = result["o"].as<std::string>();
-//		if (out_file == "")
-//		{
-//			out_file = filename;
-//			if (out_file.find(".") != std::string::npos)
-//			{
-//				auto lastindex = out_file.find_last_of(".");
-//				out_file = out_file.substr(0, lastindex);
-//			}
-//			out_file += ".bmp";
-//		}
-//
-//		std::cout << "Ouput file: " << out_file << std::endl;
-//
-//		std::cout << "Export BMP...";
-//		std::transform(data.begin(), data.end(), data.begin(), [&max_v, &min_v](double v) {return v >= 0.0 ? v / std::abs(max_v) : v / std::abs(min_v); });
-//
-//		auto pixels = std::vector<std::array<unsigned char, 3u>>(data.size());
-//
-//		auto cm = result["c"].as<std::string>();
-//		if (cm != "gb" && cm != "rs")
-//		{
-//			std::cerr << "WARNING: Unknown color map option. Fallback to mode 'gb'." << std::endl;
-//		}
-//
-//		if (cm == "gb")
-//			std::transform(data.begin(), data.end(), pixels.begin(), doubleToGreenBlueInverse);
-//		else if (cm == "rs")
-//			std::transform(data.begin(), data.end(), pixels.begin(), doubleToRedSequential);
-//
-//		BmpReaderWriter::saveFile(out_file.c_str(), xsamples, ysamples, &pixels.front()[0]);
-//		std::cout << "DONE" << std::endl;
-//
-//		std::cout << std::endl << "Statistics:" << std::endl;
-//		std::cout << "\tdomain         = " << domain.min().transpose() << ", " << domain.max().transpose() << std::endl;
-//		std::cout << "\tmin value      = " << min_v << std::endl;
-//		std::cout << "\tmax value      = " << max_v << std::endl;
-//		std::cout << "\tbmp resolution = " << xsamples << " x " << ysamples << std::endl;
+    // init the fields of all the cells
+    #pragma omp parallel for default(none) shared(resolution,field_id,sample,grid,sdf)
+    for (unsigned int i=0; i < resolution[0]; ++i) {
+      for (unsigned int j = 0; j < resolution[1]; ++j) {
+        for (unsigned int k = 0; k < resolution[2]; ++k) {
+          grid(i,j,k).initSdfMeanValue(sdf,field_id,sample);
+        }
+      }
+    }
+
+    //print the resulting boundary of the voxelized domain
+    for (unsigned int k = 0; k < grid.getXdim(); ++k) {
+      for (unsigned int j = 0; j < grid.getYdim(); ++j) {
+        for (unsigned int i=0; i < grid.getZdim(); ++i) {
+          std::cout << grid(i,j,k).getBorder() << " ";
+        }
+        std::cout << std::endl;
+      }
+      std::cout << std::endl;
+    }
+
+    grid.saveGrid("toto.txt");
+
+
 	}
 	catch (cxxopts::OptionException const& e)
 	{

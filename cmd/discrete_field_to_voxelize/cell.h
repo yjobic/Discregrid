@@ -19,15 +19,21 @@
 class cell {
 
   public:
+    cell();
+    ~cell();
     void setDims(std::vector<double> &another);
+    void initSdfMeanValue(std::unique_ptr<Discregrid::DiscreteGrid> &sdf, unsigned int fields_id, std::vector<int> &samples);
 
-  double getDim(unsigned int i);
-  std::vector<double> getDims();
+    double getDim(unsigned int i);
+    std::vector<double> getDims();
+    inline int getSolide(){return solide;}
+    inline int getBorder(){return border;}
+    void printDims();
 
   private:
     std::vector<double> dims; //xmin,xmax,ymin,ymax,zmin,zmax defining the position of the cell
-    bool border; //is this cell in a border solide/liquid ?
-    bool solide; //is it a solid ?
+    int border; //is this cell in a border solide/liquid ?
+    int solide; //is it a solid ?
     double sdfMeanValue; //mean value of the Signed distance function for this cell
 };
 

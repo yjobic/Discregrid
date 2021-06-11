@@ -6,8 +6,10 @@
 #define DISCREGRID_GRID3D_H
 
 #include <iostream>
+#include <fstream>
+#include <string>
 
-template<typename T>
+template <typename T>
 class grid3D {
 
   protected:
@@ -15,23 +17,15 @@ class grid3D {
     unsigned int dimx,dimy,dimz;
 
   public:
-    grid3D(){
-      data=NULL;
-      dimx=dimy=dimz=0;}
-    grid3D(const grid3D<T>& other){
-      unsigned int i,size=other.x*other.y*other.z;
-      data=new T[size];
-      dimx=other.w;
-      dimy=other.h;
-      dimz=other.l;
-      for(i=0;i<size;++i){data[i]=other.data[i];}}
-    grid3D(unsigned int width,unsigned int height,unsigned int length){
-      dimx=width;
-      dimy=height;
-      dimz=length;
-      data=new T[dimx*dimy*dimz];}
-    ~grid3D(){
-      delete[] data;}
+    grid3D();
+    grid3D(const grid3D<T>& other);
+    grid3D(unsigned int width,unsigned int height,unsigned int length);
+    ~grid3D();
+    inline unsigned int getXdim(){return dimx;}
+    inline unsigned int getYdim(){return dimy;}
+    inline unsigned int getZdim(){return dimz;}
+    int saveGrid(std::string filename);
+
     inline T& operator()(unsigned int x,unsigned int y,unsigned int z){
       return data[z + dimz*(y+dimy*x)];}
     inline const T& operator()(unsigned int x,unsigned int y,unsigned int z) const{
@@ -40,5 +34,5 @@ class grid3D {
       return dimx*dimy*dimz;}
 };
 
-
+#include "grid3D.tpp"
 #endif //DISCREGRID_GRID3D_H
