@@ -59,6 +59,9 @@ void cell::initSdfMeanValue(std::unique_ptr<Discregrid::DiscreteGrid> &sdf, unsi
         sample(1) = dims[YMIN]+j*ywidths;
         sample(2) = dims[ZMIN]+k*zwidths;
         dist = sdf->interpolate(fields_id,sample);
+        if (dist == std::numeric_limits<double>::max())  {
+          dist = 0.0;
+        }
         if (!initp && dist > 0) {
           initp=true;
         }

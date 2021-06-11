@@ -44,9 +44,9 @@ int grid3D<cell>::saveGrid(std::string filename) {
   std::ofstream outfile;
   outfile.open(filename.c_str());
   outfile << "VOXEL= " << std::endl;
-  outfile << "NX= " << dimx << std::endl;
-  outfile << "NY= " << dimy << std::endl;
-  outfile << "NZ= " << dimz << std::endl;
+  outfile << "NI= " << dimx << std::endl;
+  outfile << "NJ= " << dimy << std::endl;
+  outfile << "NK= " << dimz << std::endl;
   outfile << "END" << std::endl;
   outfile << "END" << std::endl;
   outfile << "ICON" << std::endl;
