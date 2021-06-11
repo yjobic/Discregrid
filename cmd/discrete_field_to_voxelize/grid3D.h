@@ -32,11 +32,11 @@ class grid3D {
       data=new T[dimx*dimy*dimz];}
     ~grid3D(){
       delete[] data;}
-    inline T& operator()(unsigned x,unsigned y,unsigned z){
+    inline T& operator()(unsigned int x,unsigned int y,unsigned int z){
       return data[z + dimz*(y+dimy*x)];}
-    inline const T& operator()(unsigned x,unsigned y,unsigned z) const{
+    inline const T& operator()(unsigned int x,unsigned int y,unsigned int z) const{
       return data[z + dimz*(y+dimy*x)];}
-    inline unsigned size() const{
+    inline unsigned int size() const{
       return dimx*dimy*dimz;}
 };
 

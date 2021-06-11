@@ -4,30 +4,16 @@
 
 #include "cell.h"
 
-void cell::setXdim(double min, double max) {
-  this->xdim.push_back(min);
-  this->xdim.push_back(max);
+void cell::setDims(std::vector<double> &another) {
+  assert(another.size()>0 && another.size()<=6);
+  this->dims=another;
 }
 
-void cell::setYdim(double min, double max) {
-  this->xdim.push_back(min);
-  this->xdim.push_back(max);
+double cell::getDim(unsigned int i) {
+  assert(i>0 && i<=6);
+  return this->dims[i];
 }
 
-void cell::setZdim(double min, double max) {
-  this->xdim.push_back(min);
-  this->xdim.push_back(max);
+std::vector<double> cell::getDims() {
+  return this->dims;
 }
-
-std::vector<double> cell::getXdim() {
-  return this->xdim;
-}
-
-std::vector<double> cell::getYdim() {
-  return this->ydim;
-}
-
-std::vector<double> cell::getZdim() {
-  return this->zdim;
-}
-

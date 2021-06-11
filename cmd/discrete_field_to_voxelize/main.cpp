@@ -34,7 +34,7 @@ int main(int argc, char* argv[])
 	("f,field_id", "ID in which the SDF to export is stored.", cxxopts::value<unsigned int>()->default_value("0"))
 	("r,resolution", "Grid resolution", cxxopts::value<std::array<unsigned int, 3>>()->default_value("10 10 10"))
 	//("s,psymetry", "Symetry point", cxxopts::value<std::array<double, 3>>()->default_value("0. 0. 0."))
-	("s,psymetry", "Symetry point", cxxopts::value<std::vector<double>>()->default_value("0."))
+	//("s,psymetry", "Symetry point", cxxopts::value<std::array<double, 3>>()->default_value("0. 0. 0."))
 	("o,output", "Output file", cxxopts::value<std::string>()->default_value(""))
 	("input", "SDF file", cxxopts::value<std::vector<std::string>>())
 	;
@@ -74,7 +74,7 @@ int main(int argc, char* argv[])
 
 		auto const& domain = sdf->domain();
     auto resolution = result["r"].as<std::array<unsigned int, 3>>();
-    auto psym = result["s"].as<std::vector<double>>();
+    //auto psym = result["s"].as<std::vector<double>>();
 
     auto xsamples = 5; auto ysamples = xsamples; auto zsamples = xsamples;
 
@@ -87,17 +87,51 @@ int main(int argc, char* argv[])
     std::copy(std::begin(resolution), std::end(resolution), std::ostream_iterator<int>(std::cout, " "));
     std::cout << std::endl;
 
-    std::cout << "symetry point : ";
-    std::copy(std::begin(psym), std::end(psym), std::ostream_iterator<double>(std::cout, " "));
-    std::cout << std::endl;
+    //std::cout << "symetry point : ";
+    //std::copy(std::begin(psym), std::end(psym), std::ostream_iterator<double>(std::cout, " "));
+    //std::cout << std::endl;
 
     // At first, we will not take into account the symetry point
     // Thus, the total number of cells known.
-    auto dom = new grid3D<cell>(resolution[0],resolution[1],resolution[2]);
+    grid3D<cell> grid (resolution[0],resolution[1],resolution[2]);
 
-    std::cout << "Domaine total size : " << dom->size() << std::endl;
+    std::cout << "Domaine total size : " << grid.size() << std::endl;
+    {
+      double xcellwidth,ycellwidth,zcellwidth,xmin,xmax,ymin,ymax,zmin,zmax;
+      std::vector<double> dims;
 
+      //simplification : the symetry point is at (0,0,0)
+      //the widths are then
+      xcellwidth = (domain.max()(0)-domain.min()(0))/resolution[0];
+      ycellwidth = (domain.max()(0)-domain.min()(1))/resolution[1];
+      zcellwidth = (domain.max()(0)-domain.min()(2))/resolution[2];
 
+      std::cout << "xcellwidth : " << xcellwidth << std::endl;
+
+      for (unsigned int i=0; i < resolution[0]; ++i) {
+        for (unsigned int j=0; j < resolution[1]; ++j) {
+          for (unsigned int k=0; k < resolution[2]; ++k) {
+            xmin = domain.min()(0)+i*xcellwidth;
+            xmax = domain.min()(0)+(i+1)*xcellwidth;
+            ymin = domain.min()(1)+j*xcellwidth;
+            ymax = domain.min()(1)+(j+1)*xcellwidth;
+            zmin = domain.min()(2)+k*xcellwidth;
+            zmax = domain.min()(2)+(k+1)*xcellwidth;
+
+            dims={xmin,xmax,ymin,ymax,zmin,zmax};
+            grid(i,j,k).setDims(dims);
+          }
+        }
+      }
+    }
+
+    std::cout << "xdims of (0,0,0) : " << std::endl;
+	  auto vecToPrintStdin = grid(0,0,0).getDims();
+    std::copy(std::begin(vecToPrintStdin), std::end(vecToPrintStdin), std::ostream_iterator<double>(std::cout, " "));
+    std::cout << std::endl;
+
+    //std::cout << "xdims of (1,2,3) : " << grid(1,2,3).getXdim()[0] << grid(1,2,3).getXdim()[1] << std::endl;
+    //std::cout << "xdims of (2,3,4) : " << grid(2,3,4).getXdim()[0] << grid(2,3,4).getXdim()[1] << std::endl;
 
 //#pragma omp parallel for
 //		for (int k = 0; k < static_cast<int>(xsamples * ysamples); ++k)
