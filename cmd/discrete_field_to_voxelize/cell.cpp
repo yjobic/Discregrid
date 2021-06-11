@@ -75,6 +75,6 @@ void cell::initSdfMeanValue(std::unique_ptr<Discregrid::DiscreteGrid> &sdf, unsi
   sdfMeanValue = moyDist/(samples[0]+samples[1]+samples[2]);
   if (initp && initn) border=1;
   else border=0;
-  if (sdfMeanValue>1e-13) solide=1;
+  if (sdfMeanValue>1e-15) solide=1;
   else solide=0;
 }

@@ -1,4 +1,5 @@
-
+// run example options : -b "-5,5,-5,5,0,0.1" -r "20 20 20" -o out.toto ./small_cylindre.cdf
+//
 #include <Discregrid/All>
 #include <Eigen/Dense>
 #include <cxxopts/cxxopts.hpp>
@@ -20,9 +21,16 @@ std::istream& operator>>(std::istream& is, std::array<unsigned int, 3>& data)
 
 std::istream& operator>>(std::istream& is, std::array<double, 3>& data)
 {
-  is >> data[0] >> data[1] >> data[2];
+  is >> data[0] >> data[1] >> data[2] ;
   return is;
 }
+
+std::istream& operator>>(std::istream& is, std::array<double, 6>& data)
+{
+  is >> data[0] >> data[1] >> data[2] >> data[3] >> data[4] >> data[5] >> data[6];
+  return is;
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -33,8 +41,8 @@ int main(int argc, char* argv[])
 	("h,help", "Prints this help text")
 	("f,field_id", "ID in which the SDF to export is stored.", cxxopts::value<unsigned int>()->default_value("0"))
 	("r,resolution", "Grid resolution", cxxopts::value<std::array<unsigned int, 3>>()->default_value("10 10 10"))
-	//("s,psymetry", "Symetry point", cxxopts::value<std::array<double, 3>>()->default_value("0. 0. 0."))
-	//("s,psymetry", "Symetry point", cxxopts::value<std::array<double, 3>>()->default_value("0. 0. 0."))
+	("s,psymetry", "Symetry point", cxxopts::value<std::array<double, 3>>()->default_value("0. 0. 0."))
+	("b,bbox", "bounding box", cxxopts::value<std::vector<double>>()->default_value("0.,0.,0.,0.,0.,0."))
 	("o,output", "Output file", cxxopts::value<std::string>()->default_value(""))
 	("input", "SDF file", cxxopts::value<std::vector<std::string>>())
 	;
@@ -74,17 +82,28 @@ int main(int argc, char* argv[])
 
 		auto const& domain = sdf->domain();
     auto resolution = result["r"].as<std::array<unsigned int, 3>>();
-    //auto psym = result["s"].as<std::vector<double>>();
-
+    auto psym = result["s"].as<std::array<double, 3>>();
 		auto field_id = result["f"].as<unsigned int>();
+    auto bbox = result["b"].as<std::vector<double>>();
+
+    if (!result.count("bbox")) {
+      bbox= {domain.min()(0),domain.max()(0),
+             domain.min()(1),domain.max()(1),
+             domain.min()(2),domain.max()(2)};
+    }
 
 		std::cout << "resolution : ";
     std::copy(std::begin(resolution), std::end(resolution), std::ostream_iterator<int>(std::cout, " "));
     std::cout << std::endl;
 
-    //std::cout << "symetry point : ";
-    //std::copy(std::begin(psym), std::end(psym), std::ostream_iterator<double>(std::cout, " "));
-    //std::cout << std::endl;
+    std::cout << "symetry point : ";
+    std::copy(std::begin(psym), std::end(psym), std::ostream_iterator<double>(std::cout, " "));
+    std::cout << std::endl;
+
+    std::cout << "bounding box : ";
+    std::copy(std::begin(bbox), std::end(bbox), std::ostream_iterator<double>(std::cout, " "));
+    std::cout << std::endl;
+
 
     // At first, we will not take into account the symetry point
     // Thus, the total number of cells known.
@@ -97,21 +116,23 @@ int main(int argc, char* argv[])
 
       //simplification : the symetry point is at (0,0,0)
       //the widths are then
-      xcellwidth = (domain.max()(0)-domain.min()(0))/resolution[0];
-      ycellwidth = (domain.max()(0)-domain.min()(1))/resolution[1];
-      zcellwidth = (domain.max()(0)-domain.min()(2))/resolution[2];
+      xcellwidth = (bbox[XMAX]-bbox[XMIN])/resolution[0];
+      ycellwidth = (bbox[YMAX]-bbox[YMIN])/resolution[1];
+      zcellwidth = (bbox[ZMAX]-bbox[ZMIN])/resolution[2];
 
-      std::cout << "xcellwidth : " << xcellwidth << std::endl;
+      std::cout << "xcellwidth : " << xcellwidth <<
+                   " ycellwidth : " << ycellwidth <<
+                   " zcellwidth : " << zcellwidth << std::endl;
 
-      for (unsigned int i=0; i < resolution[0]; ++i) {
-        for (unsigned int j=0; j < resolution[1]; ++j) {
-          for (unsigned int k=0; k < resolution[2]; ++k) {
-            xmin = domain.min()(0)+i*xcellwidth;
-            xmax = domain.min()(0)+(i+1)*xcellwidth;
-            ymin = domain.min()(1)+j*xcellwidth;
-            ymax = domain.min()(1)+(j+1)*xcellwidth;
-            zmin = domain.min()(2)+k*xcellwidth;
-            zmax = domain.min()(2)+(k+1)*xcellwidth;
+      for (unsigned int i=0; i < grid.getXdim(); ++i) {
+        for (unsigned int j=0; j < grid.getYdim(); ++j) {
+          for (unsigned int k=0; k < grid.getZdim(); ++k) {
+            xmin = bbox[XMIN]+i*xcellwidth;
+            xmax = bbox[XMIN]+(i+1)*xcellwidth;
+            ymin = bbox[YMIN]+j*ycellwidth;
+            ymax = bbox[YMIN]+(j+1)*ycellwidth;
+            zmin = bbox[ZMIN]+k*zcellwidth;
+            zmax = bbox[ZMIN]+(k+1)*zcellwidth;
 
             dims={xmin,xmax,ymin,ymax,zmin,zmax};
             grid(i,j,k).setDims(dims);
@@ -120,32 +141,32 @@ int main(int argc, char* argv[])
       }
     }
 
-    std::cout << "xdims of (0,0,0) : " << std::endl;
+    std::cout << "dims of (0,0,0) : " << std::endl;
 	  grid(0,0,0).printDims();
     std::cout << std::endl;
 
-    auto sample = std::vector<int>{20,20,20};
+    auto sample = std::vector<int>{60,60,60};
 
     // init the fields of all the cells
     #pragma omp parallel for default(none) shared(resolution,field_id,sample,grid,sdf)
-    for (unsigned int i=0; i < resolution[0]; ++i) {
-      for (unsigned int j = 0; j < resolution[1]; ++j) {
-        for (unsigned int k = 0; k < resolution[2]; ++k) {
+    for (unsigned int i=0; i < grid.getXdim(); ++i) {
+      for (unsigned int j = 0; j < grid.getYdim(); ++j) {
+        for (unsigned int k = 0; k < grid.getZdim(); ++k) {
           grid(i,j,k).initSdfMeanValue(sdf,field_id,sample);
         }
       }
     }
 
     //print the resulting boundary of the voxelized domain
-    for (unsigned int k = 0; k < grid.getXdim(); ++k) {
-      for (unsigned int j = 0; j < grid.getYdim(); ++j) {
-        for (unsigned int i=0; i < grid.getZdim(); ++i) {
-          std::cout << grid(i,j,k).getBorder() << " ";
-        }
-        std::cout << std::endl;
-      }
-      std::cout << std::endl;
-    }
+//    for (unsigned int k = 0; k < grid.getXdim(); ++k) {
+//      for (unsigned int j = 0; j < grid.getYdim(); ++j) {
+//        for (unsigned int i=0; i < grid.getZdim(); ++i) {
+//          std::cout << grid(i,j,k).getBorder() << " ";
+//        }
+//        std::cout << std::endl;
+//      }
+//      std::cout << std::endl;
+//    }
 
     grid.saveGrid("toto.txt");
 
