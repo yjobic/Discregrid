@@ -53,12 +53,13 @@ int grid3D<cell>::saveGrid(std::string filename) {
   for (unsigned int k = 0; k < dimz; ++k) {
     for (unsigned int j = 0; j < dimy; ++j) {
       for (unsigned int i = 0; i < dimx; ++i) {
-        outfile << this->operator()(i,j,k).getSolide() << " ";
+        outfile << this->operator()(i,j,k).getBorder() << " ";
       }
       outfile << std::endl;
     }
     outfile << std::endl;
   }
+  outfile.close();
 
   return 0;
 }

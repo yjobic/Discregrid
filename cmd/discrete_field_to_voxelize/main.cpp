@@ -43,6 +43,7 @@ int main(int argc, char* argv[])
 	("r,resolution", "Grid resolution", cxxopts::value<std::array<unsigned int, 3>>()->default_value("10 10 10"))
 	("s,psymetry", "Symetry point", cxxopts::value<std::array<double, 3>>()->default_value("0. 0. 0."))
 	("b,bbox", "bounding box", cxxopts::value<std::vector<double>>()->default_value("0.,0.,0.,0.,0.,0."))
+	("n,nSample", "Number of samples per cell", cxxopts::value<std::array<unsigned int, 3>>()->default_value("10 10 10"))
 	("o,output", "Output file", cxxopts::value<std::string>()->default_value(""))
 	("input", "SDF file", cxxopts::value<std::vector<std::string>>())
 	;
@@ -85,6 +86,8 @@ int main(int argc, char* argv[])
     auto psym = result["s"].as<std::array<double, 3>>();
 		auto field_id = result["f"].as<unsigned int>();
     auto bbox = result["b"].as<std::vector<double>>();
+    auto nbSamples = result["n"].as<std::array<unsigned int, 3>>();
+    auto sample = std::vector<int>{(int)nbSamples[0],(int)nbSamples[1],(int)nbSamples[2]};
 
     if (!result.count("bbox")) {
       bbox= {domain.min()(0),domain.max()(0),
@@ -102,6 +105,10 @@ int main(int argc, char* argv[])
 
     std::cout << "bounding box : ";
     std::copy(std::begin(bbox), std::end(bbox), std::ostream_iterator<double>(std::cout, " "));
+    std::cout << std::endl;
+
+    std::cout << "Nb samples per cell : ";
+    std::copy(std::begin(sample), std::end(sample), std::ostream_iterator<int>(std::cout, " "));
     std::cout << std::endl;
 
 
@@ -145,7 +152,8 @@ int main(int argc, char* argv[])
 	  grid(0,0,0).printDims();
     std::cout << std::endl;
 
-    auto sample = std::vector<int>{60,60,60};
+
+
 
     // init the fields of all the cells
     #pragma omp parallel for default(none) shared(resolution,field_id,sample,grid,sdf)
@@ -164,6 +172,106 @@ int main(int argc, char* argv[])
     std::cout << "Statistics of the first cell (1,1,0) " << std::endl;
     std::cout << "MeanValue : " << grid(1,1,0).getSdfMeanValue() << std::endl;
     std::cout << "ratioInsideOverTotal : " << grid(1,1,0).getRatioInsideOverTotal() << std::endl;
+
+    auto ycellwidth = (bbox[YMAX]-bbox[YMIN])/resolution[1];
+    auto zcellwidth = (bbox[ZMAX]-bbox[ZMIN])/resolution[2];
+    double posX=0;
+    double posZ=2*zcellwidth/sample[2];
+    auto Pt = Vector3d{};
+    Pt={posX,0.5-4*ycellwidth/9,posZ};
+    std::cout << "value of point (" << Pt[0] << "," << Pt[1] << ","<< Pt[2] <<") : " << sdf->interpolate(field_id,Pt) << std::endl;
+    Pt={posX,0.5-3*ycellwidth/9,posZ};
+    std::cout << "value of point (" << Pt[0] << "," << Pt[1] << ","<< Pt[2] <<") : " << sdf->interpolate(field_id,Pt) << std::endl;
+    Pt={posX,0.5-2*ycellwidth/9,posZ};
+    std::cout << "value of point (" << Pt[0] << "," << Pt[1] << ","<< Pt[2] <<") : " << sdf->interpolate(field_id,Pt) << std::endl;
+    Pt={posX,0.5-ycellwidth/9,posZ};
+    std::cout << "value of point (" << Pt[0] << "," << Pt[1] << ","<< Pt[2] <<") : " << sdf->interpolate(field_id,Pt) << std::endl;
+    Pt={posX,0.5,posZ};
+    std::cout << "value of point (" << Pt[0] << "," << Pt[1] << ","<< Pt[2] <<") : " << sdf->interpolate(field_id,Pt) << std::endl;
+    Pt={posX,0.5+ycellwidth/9,posZ};
+    std::cout << "value of point (" << Pt[0] << "," << Pt[1] << ","<< Pt[2] <<") : " << sdf->interpolate(field_id,Pt) << std::endl;
+    Pt={posX,0.5+2*ycellwidth/9,posZ};
+    std::cout << "value of point (" << Pt[0] << "," << Pt[1] << ","<< Pt[2] <<") : " << sdf->interpolate(field_id,Pt) << std::endl;
+    Pt={posX,0.5+3*ycellwidth/9,posZ};
+    std::cout << "value of point (" << Pt[0] << "," << Pt[1] << ","<< Pt[2] <<") : " << sdf->interpolate(field_id,Pt) << std::endl;
+    Pt={posX,0.5+4*ycellwidth/9,posZ};
+    std::cout << "value of point (" << Pt[0] << "," << Pt[1] << ","<< Pt[2] <<") : " << sdf->interpolate(field_id,Pt) << std::endl;
+    std::cout << std::endl;
+
+    for (unsigned int i=0; i<sample[2]; ++i) {
+      Pt={posX,0.5,bbox[ZMIN]+i*zcellwidth/((double)sample[2]-1)};
+      std::cout << "value of point (" << Pt[0] << "," << Pt[1] << ","<< Pt[2] <<") : " << sdf->interpolate(field_id,Pt) << std::endl;
+    }
+    std::cout << std::endl;
+
+    {
+      //save the SDF in a vtk file
+      std::cout << "Save vtk for sdf" << std::endl;
+
+      //seek the total number of point given the resolution and the sample size.
+      //the resolution gives the number of cells, the sample size the number of samples in the cell.
+      int sizeX =  resolution[0]*(sample[0]-1);
+      int sizeY =  resolution[1]*(sample[1]-1);
+      int sizeZ =  resolution[2]*(sample[2]-1);
+      double xwidth=(bbox[XMAX]-bbox[XMIN])/sizeX;
+      double ywidth=(bbox[YMAX]-bbox[YMIN])/sizeY;
+      double zwidth=(bbox[ZMAX]-bbox[ZMIN])/sizeZ;
+      sizeX++;sizeY++;sizeZ++;
+
+      //we construct the points of the structure grid
+      auto x=new double [sizeX];
+      auto y=new double [sizeY];
+      auto z=new double [sizeZ];
+      for (unsigned int i=0; i<sizeX; ++i) {
+        x[i] = bbox[XMIN] + i*xwidth;
+      }
+      for (unsigned int i=0; i<sizeY; ++i) {
+        y[i] = bbox[YMIN] + i*ywidth;
+      }
+      for (unsigned int i=0; i<sizeZ; ++i) {
+        z[i] = bbox[ZMIN] + i*zwidth;
+      }
+
+      auto evaluatedPoint = Vector3d{};
+      grid3D<double> forVTK(sizeX,sizeY,sizeZ);
+      #pragma omp parallel for default(none) shared(sizeX,sizeY,sizeZ,field_id,forVTK,sdf,x,y,z) private(evaluatedPoint)
+      for (unsigned int k=0; k<sizeZ; ++k) {
+        for (unsigned int j = 0; j < sizeY; ++j) {
+          for (unsigned int i = 0; i < sizeX; ++i) {
+            evaluatedPoint={x[i],y[j],z[k]};
+            forVTK(i,j,k) = sdf->interpolate(field_id,evaluatedPoint);
+          }
+        }
+      }
+
+      std::cout << "sizeX " << sizeX << " sizeY " << sizeY << " sizeZ " << sizeZ << std::endl;
+      std::cout << "xwidth " << xwidth << " ywidth " << ywidth << " zwidth " << zwidth << std::endl;
+
+      //we write the file
+      std::ofstream outfile;
+      outfile.open("sdf.vtk");
+      outfile << "# vtk DataFile Version 2.0" << std::endl;
+      outfile << "Value of the signed distance function" << std::endl;
+      outfile << "ASCII" << std::endl;
+      outfile << "DATASET STRUCTURED_POINTS" << std::endl;
+      outfile << "DIMENSIONS " << sizeX << " " << sizeY << " " << sizeZ << std::endl;
+      outfile << "SPACING " << xwidth << " " << ywidth << " " << zwidth << std::endl;
+      outfile << "ORIGIN " << bbox[XMIN] << " " << bbox[YMIN] << " " << bbox[ZMIN] << std::endl;
+      outfile << "POINT_DATA " << sizeX*sizeY*sizeZ << std::endl;
+      outfile << "SCALARS sdf double 1" << std::endl;
+      outfile << "LOOKUP_TABLE default" << std::endl;
+      for (unsigned int k=0; k<sizeZ; ++k) {
+        for (unsigned int j = 0; j < sizeY; ++j) {
+          for (unsigned int i = 0; i < sizeX; ++i) {
+            outfile << forVTK(i,j,k) << " ";
+          }
+          outfile << std::endl;
+        }
+      }
+      outfile.close();
+
+      std::cout << "End of saving vtk" << std::endl;
+    }
 
     //print the resulting boundary of the voxelized domain
 //    for (unsigned int k = 0; k < grid.getXdim(); ++k) {

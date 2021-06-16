@@ -45,23 +45,23 @@ void cell::initSdfMeanValue(std::unique_ptr<Discregrid::DiscreteGrid> &sdf, unsi
   int     nbInside;
   double  xwidths,ywidths,zwidths,dist,moyDist;
   bool initn=false,initp=false;
-  auto sample = Vector3d{};
+  auto evluatedPoint = Vector3d{};
 
   assert(samples.size()==3);
   assert(dims.size()==6);
 
-  xwidths = (dims[XMAX]-dims[XMIN])/samples[0];
-  ywidths = (dims[YMAX]-dims[YMIN])/samples[1];
-  zwidths = (dims[ZMAX]-dims[ZMIN])/samples[2];
+  xwidths = (dims[XMAX]-dims[XMIN])/(samples[0]-1);
+  ywidths = (dims[YMAX]-dims[YMIN])/(samples[1]-1);
+  zwidths = (dims[ZMAX]-dims[ZMIN])/(samples[2]-1);
 
   nbInside=0;
   for(unsigned int i=0; i<samples[0]; ++i) {
     for(unsigned int j=0; j<samples[1]; ++j) {
       for(unsigned int k=0; k<samples[2]; ++k) {
-        sample(0) = dims[XMIN]+i*xwidths;
-        sample(1) = dims[YMIN]+j*ywidths;
-        sample(2) = dims[ZMIN]+k*zwidths;
-        dist = sdf->interpolate(fields_id,sample);
+        evluatedPoint(0) = dims[XMIN] + i * xwidths;
+        evluatedPoint(1) = dims[YMIN] + j * ywidths;
+        evluatedPoint(2) = dims[ZMIN] + k * zwidths;
+        dist = sdf->interpolate(fields_id, evluatedPoint);
         if (dist == std::numeric_limits<double>::max())  {
           dist = 0.0;
         }
@@ -72,7 +72,7 @@ void cell::initSdfMeanValue(std::unique_ptr<Discregrid::DiscreteGrid> &sdf, unsi
           initn=true;
         }
         moyDist += dist;
-        if (dist>=0) nbInside++;
+        if (dist>0) nbInside++;
       }
     }
   }
@@ -82,10 +82,15 @@ void cell::initSdfMeanValue(std::unique_ptr<Discregrid::DiscreteGrid> &sdf, unsi
   //for closed one, which is the inside. Thus, computing the ratio of inside samples over
   //the total gives a better indicator of Solide/Fluide voxel.
   ratioInsideOverTotal = nbInside/(double)totalSamples;
-  if (ratioInsideOverTotal>=0.5) solide=1;
+  if (ratioInsideOverTotal>0.5) solide=1;
   else solide=0;
 //  if (moyDist>0) solide=1;
 //  else solide=0;
   if (initp && initn) border=1;
   else border=0;
+  if (0 && border) {
+    std::cout << "Cell border" << std::endl;
+    printDims();
+    std::cout << "nbInside " << nbInside << " ratioInsideOverTotal " << ratioInsideOverTotal << std::endl;
+  }
 }
