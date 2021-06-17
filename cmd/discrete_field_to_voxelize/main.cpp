@@ -1,4 +1,4 @@
-// run example options : -b "-5,5,-5,5,0,0.1" -r "20 20 20" -o out.toto ./small_cylindre.cdf
+// run example options : -b "-5,5,-5,5,0,0.1" -r "20,20,20" -o out.toto ./small_cylindre.cdf
 //
 #include <Discregrid/All>
 #include <Eigen/Dense>
@@ -32,8 +32,10 @@ std::istream& operator>>(std::istream& is, std::array<double, 6>& data)
   return is;
 }
 
+//resolution and sample is redondant, however i need it in order to check the sampling method of "integration"
+// in order to determine if a cell is a fluid cell or a solid cell
 void sdfToVTK(std::string filename, std::unique_ptr<Discregrid::DiscreteGrid> &sdf, unsigned int field_id,
-              std::array<unsigned int, 3> resolution, std::vector<int> &sample, std::vector<double> bbox);
+              std::vector<unsigned int> resolution, std::vector<int> &sample, std::vector<double> bbox);
 
 
 int main(int argc, char* argv[])
@@ -44,10 +46,10 @@ int main(int argc, char* argv[])
 	options.add_options()
 	("h,help", "Prints this help text")
 	("f,field_id", "ID in which the SDF to export is stored.", cxxopts::value<unsigned int>()->default_value("0"))
-	("r,resolution", "Grid resolution", cxxopts::value<std::array<unsigned int, 3>>()->default_value("10 10 10"))
+	("r,resolution", "Grid resolution", cxxopts::value<std::vector<unsigned int>>()->default_value("10,10,10"))
 	("s,psymetry", "Symetry point", cxxopts::value<std::array<double, 3>>()->default_value("0. 0. 0."))
 	("b,bbox", "bounding box", cxxopts::value<std::vector<double>>()->default_value("0.,0.,0.,0.,0.,0."))
-	("n,nSample", "Number of samples per cell", cxxopts::value<std::array<unsigned int, 3>>()->default_value("10 10 10"))
+	("n,nSample", "Number of samples per cell", cxxopts::value<std::vector<unsigned int>>()->default_value("10,10,10"))
 	("o,output", "Output file", cxxopts::value<std::string>()->default_value(""))
 	("input", "SDF file", cxxopts::value<std::vector<std::string>>())
 	;
@@ -86,13 +88,12 @@ int main(int argc, char* argv[])
 		std::cout << "DONE" << std::endl;
 
 		auto const& domain = sdf->domain();
-    auto resolution = result["r"].as<std::array<unsigned int, 3>>();
+    auto resolution = result["r"].as<std::vector<unsigned int>>();
     auto psym = result["s"].as<std::array<double, 3>>();
 		auto field_id = result["f"].as<unsigned int>();
     auto bbox = result["b"].as<std::vector<double>>();
-    auto nbSamples = result["n"].as<std::array<unsigned int, 3>>();
+    auto nbSamples = result["n"].as<std::vector<unsigned int>>();
     auto sample = std::vector<int>{(int)nbSamples[0],(int)nbSamples[1],(int)nbSamples[2]};
-    mesh dm;
 
     if (!result.count("bbox")) {
       bbox= {domain.min()(0),domain.max()(0),
@@ -100,17 +101,17 @@ int main(int argc, char* argv[])
              domain.min()(2),domain.max()(2)};
     }
 
-		std::cout << "resolution : ";
-    std::copy(std::begin(resolution), std::end(resolution), std::ostream_iterator<int>(std::cout, " "));
-    std::cout << std::endl;
+    //Creation of the mesh, considering the bounding box and the resolution
+    mesh dm(bbox,resolution);
+
+
+    dm.printResolution();
+    dm.printBbox();
 
     std::cout << "symetry point : ";
     std::copy(std::begin(psym), std::end(psym), std::ostream_iterator<double>(std::cout, " "));
     std::cout << std::endl;
 
-    std::cout << "bounding box : ";
-    std::copy(std::begin(bbox), std::end(bbox), std::ostream_iterator<double>(std::cout, " "));
-    std::cout << std::endl;
 
     std::cout << "Nb samples per cell : ";
     std::copy(std::begin(sample), std::end(sample), std::ostream_iterator<int>(std::cout, " "));
@@ -138,28 +139,37 @@ int main(int argc, char* argv[])
 
 
       for (unsigned int i=0; i < grid.getXdim(); ++i) {
+        xmin = bbox[XMIN] + i * xcellwidth;
+        xmax = bbox[XMIN] + (i + 1) * xcellwidth;
+        dm.addXcoords(xmin);
+        if (i == grid.getXdim()-1) dm.addXcoords(xmax);
+      }
+
+      for (unsigned int j=0; j < grid.getYdim(); ++j) {
+        ymin = bbox[YMIN] + j * ycellwidth;
+        ymax = bbox[YMIN] + (j + 1) * ycellwidth;
+        dm.addYcoords(ymin);
+        if (j == grid.getYdim()-1) dm.addYcoords(ymax);
+      }
+
+      for (unsigned int k=0; k < grid.getZdim(); ++k) {
+        zmin = bbox[ZMIN] + k * zcellwidth;
+        zmax = bbox[ZMIN] + (k + 1) * zcellwidth;
+        dm.addZcoords(zmin);
+        if (k == grid.getZdim() - 1) dm.addZcoords(zmax);
+      }
+
+      for (unsigned int i=0; i < grid.getXdim(); ++i) {
         for (unsigned int j=0; j < grid.getYdim(); ++j) {
           for (unsigned int k=0; k < grid.getZdim(); ++k) {
-            xmin = bbox[XMIN]+i*xcellwidth;
-            xmax = bbox[XMIN]+(i+1)*xcellwidth;
-            ymin = bbox[YMIN]+j*ycellwidth;
-            ymax = bbox[YMIN]+(j+1)*ycellwidth;
-            zmin = bbox[ZMIN]+k*zcellwidth;
-            zmax = bbox[ZMIN]+(k+1)*zcellwidth;
-
-            dm.addCoords(xmin,ymin,zmin);
-            if (k == grid.getZdim()-1) dm.addZcoords(zmax);
-            if (j == grid.getYdim()-1) dm.addYcoords(ymax);
-            if (i == grid.getXdim()-1) dm.addXcoords(xmax);
-
-            dims={xmin,xmax,ymin,ymax,zmin,zmax};
+            dims={dm.getXcoord(i),dm.getXcoord(i+1),
+                  dm.getYcoord(j),dm.getYcoord(j+1),
+                  dm.getZcoord(k),dm.getZcoord(k+1)};
             grid(i,j,k).setDims(dims);
           }
         }
       }
     }
-
-    dm.printYcoords();
 
     std::cout << "dims of (0,0,0) : " << std::endl;
 	  grid(0,0,0).printDims();
@@ -228,8 +238,10 @@ int main(int argc, char* argv[])
 	return 0;
 }
 
+//resolution and sample is redondant, however i need it in order to check the sampling method of "integration"
+// in order to determine if a cell is a fluid cell or a solid cell
 void sdfToVTK(std::string filename, std::unique_ptr<Discregrid::DiscreteGrid> &sdf, unsigned int field_id,
-              std::array<unsigned int, 3> resolution, std::vector<int> &sample, std::vector<double> bbox) {
+              std::vector<unsigned int> resolution, std::vector<int> &sample, std::vector<double> bbox) {
 
   //save the SDF in a vtk file
   std::cout << "Save vtk for sdf" << std::endl;
