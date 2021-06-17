@@ -9,6 +9,7 @@
 #include <array>
 #include "cell.h"
 #include "grid3D.h"
+#include "mesh.h"
 
 using namespace Eigen;
 
@@ -30,6 +31,9 @@ std::istream& operator>>(std::istream& is, std::array<double, 6>& data)
   is >> data[0] >> data[1] >> data[2] >> data[3] >> data[4] >> data[5] >> data[6];
   return is;
 }
+
+void sdfToVTK(std::string filename, std::unique_ptr<Discregrid::DiscreteGrid> &sdf, unsigned int field_id,
+              std::array<unsigned int, 3> resolution, std::vector<int> &sample, std::vector<double> bbox);
 
 
 int main(int argc, char* argv[])
@@ -88,6 +92,7 @@ int main(int argc, char* argv[])
     auto bbox = result["b"].as<std::vector<double>>();
     auto nbSamples = result["n"].as<std::array<unsigned int, 3>>();
     auto sample = std::vector<int>{(int)nbSamples[0],(int)nbSamples[1],(int)nbSamples[2]};
+    mesh dm;
 
     if (!result.count("bbox")) {
       bbox= {domain.min()(0),domain.max()(0),
@@ -131,6 +136,7 @@ int main(int argc, char* argv[])
                    " ycellwidth : " << ycellwidth <<
                    " zcellwidth : " << zcellwidth << std::endl;
 
+
       for (unsigned int i=0; i < grid.getXdim(); ++i) {
         for (unsigned int j=0; j < grid.getYdim(); ++j) {
           for (unsigned int k=0; k < grid.getZdim(); ++k) {
@@ -141,6 +147,11 @@ int main(int argc, char* argv[])
             zmin = bbox[ZMIN]+k*zcellwidth;
             zmax = bbox[ZMIN]+(k+1)*zcellwidth;
 
+            dm.addCoords(xmin,ymin,zmin);
+            if (k == grid.getZdim()-1) dm.addZcoords(zmax);
+            if (j == grid.getYdim()-1) dm.addYcoords(ymax);
+            if (i == grid.getXdim()-1) dm.addXcoords(xmax);
+
             dims={xmin,xmax,ymin,ymax,zmin,zmax};
             grid(i,j,k).setDims(dims);
           }
@@ -148,12 +159,11 @@ int main(int argc, char* argv[])
       }
     }
 
+    dm.printYcoords();
+
     std::cout << "dims of (0,0,0) : " << std::endl;
 	  grid(0,0,0).printDims();
     std::cout << std::endl;
-
-
-
 
     // init the fields of all the cells
     #pragma omp parallel for default(none) shared(resolution,field_id,sample,grid,sdf)
@@ -204,86 +214,7 @@ int main(int argc, char* argv[])
     }
     std::cout << std::endl;
 
-    {
-      //save the SDF in a vtk file
-      std::cout << "Save vtk for sdf" << std::endl;
-
-      //seek the total number of point given the resolution and the sample size.
-      //the resolution gives the number of cells, the sample size the number of samples in the cell.
-      int sizeX =  resolution[0]*(sample[0]-1);
-      int sizeY =  resolution[1]*(sample[1]-1);
-      int sizeZ =  resolution[2]*(sample[2]-1);
-      double xwidth=(bbox[XMAX]-bbox[XMIN])/sizeX;
-      double ywidth=(bbox[YMAX]-bbox[YMIN])/sizeY;
-      double zwidth=(bbox[ZMAX]-bbox[ZMIN])/sizeZ;
-      sizeX++;sizeY++;sizeZ++;
-
-      //we construct the points of the structure grid
-      auto x=new double [sizeX];
-      auto y=new double [sizeY];
-      auto z=new double [sizeZ];
-      for (unsigned int i=0; i<sizeX; ++i) {
-        x[i] = bbox[XMIN] + i*xwidth;
-      }
-      for (unsigned int i=0; i<sizeY; ++i) {
-        y[i] = bbox[YMIN] + i*ywidth;
-      }
-      for (unsigned int i=0; i<sizeZ; ++i) {
-        z[i] = bbox[ZMIN] + i*zwidth;
-      }
-
-      auto evaluatedPoint = Vector3d{};
-      grid3D<double> forVTK(sizeX,sizeY,sizeZ);
-      #pragma omp parallel for default(none) shared(sizeX,sizeY,sizeZ,field_id,forVTK,sdf,x,y,z) private(evaluatedPoint)
-      for (unsigned int k=0; k<sizeZ; ++k) {
-        for (unsigned int j = 0; j < sizeY; ++j) {
-          for (unsigned int i = 0; i < sizeX; ++i) {
-            evaluatedPoint={x[i],y[j],z[k]};
-            forVTK(i,j,k) = sdf->interpolate(field_id,evaluatedPoint);
-          }
-        }
-      }
-
-      std::cout << "sizeX " << sizeX << " sizeY " << sizeY << " sizeZ " << sizeZ << std::endl;
-      std::cout << "xwidth " << xwidth << " ywidth " << ywidth << " zwidth " << zwidth << std::endl;
-
-      //we write the file
-      std::ofstream outfile;
-      outfile.open("sdf.vtk");
-      outfile << "# vtk DataFile Version 2.0" << std::endl;
-      outfile << "Value of the signed distance function" << std::endl;
-      outfile << "ASCII" << std::endl;
-      outfile << "DATASET STRUCTURED_POINTS" << std::endl;
-      outfile << "DIMENSIONS " << sizeX << " " << sizeY << " " << sizeZ << std::endl;
-      outfile << "SPACING " << xwidth << " " << ywidth << " " << zwidth << std::endl;
-      outfile << "ORIGIN " << bbox[XMIN] << " " << bbox[YMIN] << " " << bbox[ZMIN] << std::endl;
-      outfile << "POINT_DATA " << sizeX*sizeY*sizeZ << std::endl;
-      outfile << "SCALARS sdf double 1" << std::endl;
-      outfile << "LOOKUP_TABLE default" << std::endl;
-      for (unsigned int k=0; k<sizeZ; ++k) {
-        for (unsigned int j = 0; j < sizeY; ++j) {
-          for (unsigned int i = 0; i < sizeX; ++i) {
-            outfile << forVTK(i,j,k) << " ";
-          }
-          outfile << std::endl;
-        }
-      }
-      outfile.close();
-
-      std::cout << "End of saving vtk" << std::endl;
-    }
-
-    //print the resulting boundary of the voxelized domain
-//    for (unsigned int k = 0; k < grid.getXdim(); ++k) {
-//      for (unsigned int j = 0; j < grid.getYdim(); ++j) {
-//        for (unsigned int i=0; i < grid.getZdim(); ++i) {
-//          std::cout << grid(i,j,k).getBorder() << " ";
-//        }
-//        std::cout << std::endl;
-//      }
-//      std::cout << std::endl;
-//    }
-
+    sdfToVTK("sdf.vtk", sdf, field_id, resolution, sample, bbox);
     grid.saveGrid("toto.txt");
 
 
@@ -295,4 +226,76 @@ int main(int argc, char* argv[])
 	}
 	
 	return 0;
+}
+
+void sdfToVTK(std::string filename, std::unique_ptr<Discregrid::DiscreteGrid> &sdf, unsigned int field_id,
+              std::array<unsigned int, 3> resolution, std::vector<int> &sample, std::vector<double> bbox) {
+
+  //save the SDF in a vtk file
+  std::cout << "Save vtk for sdf" << std::endl;
+
+  //seek the total number of point given the resolution and the sample size.
+  //the resolution gives the number of cells, the sample size the number of samples in the cell.
+  int sizeX =  resolution[0]*(sample[0]-1);
+  int sizeY =  resolution[1]*(sample[1]-1);
+  int sizeZ =  resolution[2]*(sample[2]-1);
+  double xwidth=(bbox[XMAX]-bbox[XMIN])/sizeX;
+  double ywidth=(bbox[YMAX]-bbox[YMIN])/sizeY;
+  double zwidth=(bbox[ZMAX]-bbox[ZMIN])/sizeZ;
+  sizeX++;sizeY++;sizeZ++;
+
+  //we construct the points of the structure grid
+  auto x=new double [sizeX];
+  auto y=new double [sizeY];
+  auto z=new double [sizeZ];
+  for (unsigned int i=0; i<sizeX; ++i) {
+    x[i] = bbox[XMIN] + i*xwidth;
+  }
+  for (unsigned int i=0; i<sizeY; ++i) {
+    y[i] = bbox[YMIN] + i*ywidth;
+  }
+  for (unsigned int i=0; i<sizeZ; ++i) {
+    z[i] = bbox[ZMIN] + i*zwidth;
+  }
+
+  auto evaluatedPoint = Vector3d{};
+  grid3D<double> forVTK(sizeX,sizeY,sizeZ);
+  #pragma omp parallel for default(none) shared(sizeX,sizeY,sizeZ,field_id,forVTK,sdf,x,y,z) private(evaluatedPoint)
+  for (unsigned int k=0; k<sizeZ; ++k) {
+    for (unsigned int j = 0; j < sizeY; ++j) {
+      for (unsigned int i = 0; i < sizeX; ++i) {
+        evaluatedPoint={x[i],y[j],z[k]};
+        forVTK(i,j,k) = sdf->interpolate(field_id,evaluatedPoint);
+      }
+    }
+  }
+
+  std::cout << "sizeX " << sizeX << " sizeY " << sizeY << " sizeZ " << sizeZ << std::endl;
+  std::cout << "xwidth " << xwidth << " ywidth " << ywidth << " zwidth " << zwidth << std::endl;
+
+  //we write the file
+  std::ofstream outfile;
+  outfile.open(filename);
+  outfile << "# vtk DataFile Version 2.0" << std::endl;
+  outfile << "Value of the signed distance function" << std::endl;
+  outfile << "ASCII" << std::endl;
+  outfile << "DATASET STRUCTURED_POINTS" << std::endl;
+  outfile << "DIMENSIONS " << sizeX << " " << sizeY << " " << sizeZ << std::endl;
+  outfile << "SPACING " << xwidth << " " << ywidth << " " << zwidth << std::endl;
+  outfile << "ORIGIN " << bbox[XMIN] << " " << bbox[YMIN] << " " << bbox[ZMIN] << std::endl;
+  outfile << "POINT_DATA " << sizeX*sizeY*sizeZ << std::endl;
+  outfile << "SCALARS sdf double 1" << std::endl;
+  outfile << "LOOKUP_TABLE default" << std::endl;
+  for (unsigned int k=0; k<sizeZ; ++k) {
+    for (unsigned int j = 0; j < sizeY; ++j) {
+      for (unsigned int i = 0; i < sizeX; ++i) {
+        outfile << forVTK(i,j,k) << " ";
+      }
+      outfile << std::endl;
+    }
+  }
+  outfile.close();
+
+  std::cout << "End of saving vtk" << std::endl;
+
 }
