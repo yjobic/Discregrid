@@ -10,6 +10,7 @@
 #include "cell.h"
 #include "grid3D.h"
 #include "mesh.h"
+#include "constants.h"
 
 using namespace Eigen;
 
@@ -123,41 +124,9 @@ int main(int argc, char* argv[])
     grid3D<cell> grid (resolution[0],resolution[1],resolution[2]);
 
     std::cout << "Domaine total size : " << grid.size() << std::endl;
+    dm.initCorrdsConstantStep();
     {
-      double xcellwidth,ycellwidth,zcellwidth,xmin,xmax,ymin,ymax,zmin,zmax;
       std::vector<double> dims(6,0);
-
-      //simplification : the symetry point is at (0,0,0)
-      //the widths are then
-      xcellwidth = (bbox[XMAX]-bbox[XMIN])/resolution[0];
-      ycellwidth = (bbox[YMAX]-bbox[YMIN])/resolution[1];
-      zcellwidth = (bbox[ZMAX]-bbox[ZMIN])/resolution[2];
-
-      std::cout << "xcellwidth : " << xcellwidth <<
-                   " ycellwidth : " << ycellwidth <<
-                   " zcellwidth : " << zcellwidth << std::endl;
-
-
-      for (unsigned int i=0; i < grid.getXdim(); ++i) {
-        xmin = bbox[XMIN] + i * xcellwidth;
-        xmax = bbox[XMIN] + (i + 1) * xcellwidth;
-        dm.addXcoords(xmin);
-        if (i == grid.getXdim()-1) dm.addXcoords(xmax);
-      }
-
-      for (unsigned int j=0; j < grid.getYdim(); ++j) {
-        ymin = bbox[YMIN] + j * ycellwidth;
-        ymax = bbox[YMIN] + (j + 1) * ycellwidth;
-        dm.addYcoords(ymin);
-        if (j == grid.getYdim()-1) dm.addYcoords(ymax);
-      }
-
-      for (unsigned int k=0; k < grid.getZdim(); ++k) {
-        zmin = bbox[ZMIN] + k * zcellwidth;
-        zmax = bbox[ZMIN] + (k + 1) * zcellwidth;
-        dm.addZcoords(zmin);
-        if (k == grid.getZdim() - 1) dm.addZcoords(zmax);
-      }
 
       for (unsigned int i=0; i < grid.getXdim(); ++i) {
         for (unsigned int j=0; j < grid.getYdim(); ++j) {

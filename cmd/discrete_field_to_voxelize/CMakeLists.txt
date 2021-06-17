@@ -33,7 +33,7 @@ endif()
 
 add_executable(discrete_field_to_voxelize
 	main.cpp
-        cell.cpp cell.h grid3D.tpp grid3D.h mesh.cpp mesh.h)
+        cell.cpp cell.h grid3D.tpp grid3D.h mesh.cpp mesh.h constants.h)
 
 add_dependencies(discrete_field_to_voxelize
 	Discregrid

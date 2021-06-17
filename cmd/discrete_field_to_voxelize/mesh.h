@@ -9,6 +9,9 @@
 #include <iostream>
 #include <iterator>
 #include <array>
+#include "constants.h"
+#include "grid3D.h"
+#include "cell.h"
 
 class mesh {
 
@@ -16,6 +19,7 @@ class mesh {
     std::vector<double> Xcoords,Ycoords,Zcoords; // Coordinates of the voxels
     std::vector<unsigned int> resolution; // number of voxels in each directions {x,y,z}
     std::vector<double> bbox;    //bounding box of the mesh
+    grid3D<cell> grid;
 
   public:
     mesh(std::vector<double> bbox, std::vector<unsigned int> resolution);
@@ -29,6 +33,8 @@ class mesh {
     inline double getXcoord(unsigned int pos) {return Xcoords[pos];}
     inline double getYcoord(unsigned int pos) {return Ycoords[pos];}
     inline double getZcoord(unsigned int pos) {return Zcoords[pos];}
+
+    void initCorrdsConstantStep();
 
     void printXcoords();
     void printYcoords();

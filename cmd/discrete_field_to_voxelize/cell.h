@@ -8,13 +8,8 @@
 #include <vector>
 #include <Discregrid/All>
 #include <memory>
+#include "constants.h"
 
-#define XMIN 0
-#define XMAX 1
-#define YMIN 2
-#define YMAX 3
-#define ZMIN 4
-#define ZMAX 5
 
 class cell {
 
