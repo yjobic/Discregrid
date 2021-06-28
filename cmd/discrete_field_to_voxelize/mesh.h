@@ -10,8 +10,9 @@
 #include <iterator>
 #include <array>
 #include "constants.h"
-#include "grid3D.h"
 #include "cell.h"
+#include "grid3D.h"
+
 
 class mesh {
 
@@ -35,6 +36,9 @@ class mesh {
     inline double getZcoord(unsigned int pos) {return Zcoords[pos];}
 
     void initCorrdsConstantStep();
+
+    // Getters / Setters of the grid
+    inline void printGridSize() {grid.size();}
 
     void printXcoords();
     void printYcoords();

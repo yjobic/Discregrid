@@ -18,6 +18,7 @@ mesh::mesh(std::vector<double> bboxInput, std::vector<unsigned int> resolutionIn
   bbox=bboxInput;
   resolution=resolutionInput;
   Xcoords=Ycoords=Zcoords={};
+  grid=grid3D<cell>(resolutionInput[0],resolutionInput[1],resolutionInput[2]);
 }
 
 mesh::~mesh() {

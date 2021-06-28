@@ -108,6 +108,7 @@ int main(int argc, char* argv[])
 
     dm.printResolution();
     dm.printBbox();
+    dm.printGridSize();
 
     std::cout << "symetry point : ";
     std::copy(std::begin(psym), std::end(psym), std::ostream_iterator<double>(std::cout, " "));
